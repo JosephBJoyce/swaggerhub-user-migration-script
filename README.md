@@ -14,7 +14,6 @@ nano migrate_swaggerhub_users.sh
 
 Paste the script into the editor, then press `CTRL + X`, `Y`, and `Enter` to save.
 
----
 
 ## 2. Make the Script Executable
 
@@ -24,7 +23,7 @@ Grant execute permissions:
 chmod +x migrate_swaggerhub_users.sh
 ```
 
----
+
 
 ## 3. Install `jq` (If Not Installed)
 
@@ -41,7 +40,7 @@ chmod +x migrate_swaggerhub_users.sh
 - **Windows** (WSL or Git Bash):\
   Download from [jq official site](https://stedolan.github.io/jq/download/).
 
----
+
 
 ## 4. Set API Keys and Organization Names
 
@@ -58,7 +57,6 @@ Replace these placeholders:
 - `SOURCE_API_KEY="your_source_api_key"`
 - `TARGET_API_KEY="your_target_api_key"`
 
----
 
 ## 5. Run the Script
 
@@ -68,13 +66,10 @@ Execute the script with:
 ./migrate_swaggerhub_users.sh
 ```
 
----
-
 ## 6. Verify the Migration
 
 Check your **target organization** on SwaggerHub to confirm that users were successfully added.
 
----
 
 ## Troubleshooting
 
