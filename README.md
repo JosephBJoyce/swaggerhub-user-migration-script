@@ -1,261 +1,316 @@
-# SwaggerHub Organization User + Access Control Migration Script
+# SwaggerHub User & ACL Migration Script
+
+## Overview
 
 This script migrates:
 
 * Organization members
 * Organization-level roles
-* Resource-level access permissions (ACLs)
+* Resource-level ACL permissions
 
-from one SwaggerHub organization to another using the SwaggerHub User Management API.
+between two SwaggerHub organizations using the SwaggerHub User Management API.
+
+The script supports migration of permissions for:
+
+* APIs
+* Domains
+* Projects
+
+It also includes:
+
+* detailed debug logging
+* ACL discovery
+* role normalization
+* URL encoding for resource names
+* graceful handling of existing users
+* error handling for missing target resources
 
 ---
 
 # Features
 
-## Migrates Organization Membership
+## User Migration
 
-Copies users from a source organization into a target organization, preserving their org-level role.
+Migrates organization members from a source organization to a target organization.
 
-Examples:
+## Organization Role Migration
+
+Migrates organization-level roles such as:
 
 * OWNER
 * DESIGNER
 * CONSUMER
 
----
+## Resource-Level ACL Migration
 
-## Migrates Resource-Level Permissions
-
-Copies user access assignments for resources such as:
+Migrates explicit resource permissions for:
 
 * APIs
 * Domains
-* Other SwaggerHub resource types
+* Projects
 
-Examples:
+## Debug Logging
 
-* READ
-* WRITE
-* OWNER
+Provides detailed request/response output for troubleshooting.
 
----
+## Safe Error Handling
 
-## Production-Oriented Improvements
+Handles:
 
-Includes:
+* existing users
+* invalid resource references
+* missing APIs/domains/projects
+* malformed ACL entries
 
-* Error handling
-* Dependency validation
-* Logging
-* Temporary file cleanup
-* Safer Bash settings
-* API response validation
+without terminating the entire migration.
 
 ---
 
 # Requirements
 
+## Dependencies
+
 The following tools must be installed:
 
-* `bash`
-* `curl`
-* `jq`
+* bash
+* curl
+* jq
 
----
-
-# SwaggerHub API Requirements
-
-You will need:
-
-* A source organization
-* A target organization
-* API keys with sufficient permissions in both orgs
-
-The API keys should have permissions to:
-
-* Read users and ACLs from the source org
-* Add users and permissions to the target org
-
-SwaggerHub User Management API docs:
-
-[https://app.swaggerhub.com/apis-docs/swagger-hub/user-management-api/2.4.0#/](https://app.swaggerhub.com/apis-docs/swagger-hub/user-management-api/2.4.0#/)
-
----
-
-# Environment Variables
-
-Set the following environment variables before running the script.
-
-## Linux / macOS
+Verify dependencies:
 
 ```bash
-export SOURCE_ORG="source-org-name"
-export TARGET_ORG="target-org-name"
-
-export SOURCE_API_KEY="source-api-key"
-export TARGET_API_KEY="target-api-key"
+curl --version
+jq --version
 ```
 
-## Windows PowerShell
+---
 
-```powershell
-$env:SOURCE_ORG="source-org-name"
-$env:TARGET_ORG="target-org-name"
+# Configuration
 
-$env:SOURCE_API_KEY="source-api-key"
-$env:TARGET_API_KEY="target-api-key"
+Update the following variables in the script:
+
+```bash
+SOURCE_ORG="source_org"
+TARGET_ORG="target_org"
+
+SOURCE_API_KEY="source_api_key"
+TARGET_API_KEY="target_api_key"
 ```
+
+---
+
+# API Permissions Required
+
+The API keys used must have sufficient permissions to:
+
+* read members from the source org
+* read ACLs from the source org
+* add members to the target org
+* manage ACLs in the target org
 
 ---
 
 # Running the Script
 
-## Make Executable
+Make the script executable:
 
 ```bash
-chmod +x migrate-swaggerhub-users.sh
+chmod +x swaggerhub-user-migration-script.sh
 ```
 
-## Run
+Run the script:
 
 ```bash
-./migrate-swaggerhub-users.sh
+./swaggerhub-user-migration-script.sh
 ```
-
----
-
-# What the Script Does
-
-For each user in the source org:
-
-1. Fetches org membership details
-2. Adds the user to the target org
-3. Fetches all assigned resource permissions
-4. Recreates those permissions in the target org
-
----
-
-# Important Assumptions
-
-## Resources Must Already Exist
-
-The script assumes:
-
-* APIs
-* domains
-* other resources
-
-already exist in the target organization.
-
-The script does NOT migrate the resources themselves.
-
----
-
-## Resource Names Must Match
-
-Resource names are assumed to be identical between:
-
-* source org
-* target org
-
-If names differ, ACL migration will fail for those resources.
 
 ---
 
 # Example Output
 
 ```text
-[INFO] Fetching users from source org: source-org
-
-[INFO] ----------------------------------------
-[INFO] Processing user: user@example.com
-
-[INFO] Added user: user@example.com (DESIGNER)
-
-[INFO] Migrating resource permissions for: user@example.com
-
-[INFO]   -> API / customer-api / OWNER
+[INFO] Processing user: daisy.priya@smartbear.com
+[INFO] Added user: daisy.priya@smartbear.com (DESIGNER)
+[INFO] Migrating resource permissions for: daisy.priya@smartbear.com
+[INFO]   -> API / citizen-api / DESIGNER
 [INFO]      Permission migrated
-
-[INFO]   -> DOMAIN / shared-models / WRITE
-[INFO]      Permission migrated
-
-[INFO] Migration complete
 ```
 
 ---
 
-# Common Failure Scenarios
+# Understanding ACL Migration Errors
 
-## User Already Exists
+## 404 Unknown API/Domain/Project
 
-If a user already exists in the target org, the API may return:
+Example:
 
-* `409 Conflict`
-* another 4xx response
+```text
+Unknown API smartbear-bank/citizen-api
+```
 
-The script will log the failure and continue.
+This means:
 
----
+* the target organization does not contain the resource
+* ACLs cannot be assigned until the resource exists
 
-## Resource Does Not Exist
+### Solution
 
-If a target resource does not exist:
-
-* permission migration for that resource will fail
-* the script will continue processing other resources
-
----
-
-## User Invitation Not Accepted Yet
-
-Some ACL assignments may fail if:
-
-* the user has not yet accepted their org invitation
+Create or migrate the resource into the target org before running ACL migration.
 
 ---
 
-# Recommended Migration Process
+# Supported Resource Types
 
-For real-world migrations:
+The script currently supports:
 
-1. Create the target org
-2. Migrate APIs/resources first
-3. Run this user + ACL migration script
-4. Validate permissions
-5. Ask users to verify access
+* api
+* domain
+* project
+* organization
 
----
-
-# Suggested Future Enhancements
-
-Potential improvements include:
-
-* Dry-run mode
-* CSV migration report
-* Retry logic
-* Parallel processing
-* Pagination support beyond 1000 records
-* URL encoding for special resource names
-* Differential sync mode
-* Verification mode (source vs target comparison)
+Organization-level roles are handled separately through the `/members` endpoint.
 
 ---
 
-# Security Notes
+# Important Behavioral Notes
 
-## Do NOT Hardcode API Keys
+## Organization Roles
 
-Use environment variables instead of storing secrets in source code.
+Organization roles are migrated using:
+
+```text
+POST /orgs/{org}/members
+```
+
+These are NOT migrated as resource ACLs.
 
 ---
 
-## Avoid Committing Secrets
+## Resource ACLs
 
-Add files like `.env` to `.gitignore`.
+ACLs are migrated using:
+
+```text
+POST /orgs/{org}/resources/{resource}/resource-type/{type}/users
+```
+
+The target resource must already exist.
+
+---
+
+# Troubleshooting
+
+## Users Not Appearing In Target Org
+
+If users are not appearing:
+
+1. Verify the API key permissions
+2. Verify the `/members` payload structure
+3. Enable DEBUG logging
+4. Check the API response body
+
+---
+
+## Users Incorrectly Reported As Existing
+
+The script previously matched all 400 responses as duplicate users.
+
+This has been corrected by narrowing duplicate detection logic.
+
+---
+
+## ACLs Not Migrating
+
+If ACL migration fails:
+
+* verify the target resource exists
+* verify resource names match exactly
+* verify resource type casing
+* check the generated ACL URL in debug logs
+
+---
+
+# Debug Mode
+
+Enable debug logging:
+
+```bash
+DEBUG=true
+```
+
+Debug mode outputs:
+
+* raw API responses
+* generated payloads
+* generated URLs
+* ACL responses
+
+---
+
+# Security Recommendations
+
+## Rotate API Keys
+
+If API keys were:
+
+* committed to source control
+* shared in chat
+* exposed in logs
+
+rotate them immediately.
+
+---
+
+# Known Limitations
+
+## Resource Dependencies
+
+ACL migration requires:
+
+* APIs to exist
+* domains to exist
+* projects to exist
+
+in the target organization.
+
+## Pagination
+
+The script currently requests:
+
+```text
+pageSize=1000
+```
+
+Organizations with more than 1000 users or ACLs may require pagination support.
+
+---
+
+# Recommended Future Enhancements
+
+Potential improvements:
+
+* CSV migration reports
+* dry-run mode
+* retry logic for transient API failures
+* automatic resource existence checks
+* automatic API/domain/project migration
+* parallelized migrations
+* configurable logging levels
+
+---
+
+# Exit Behavior
+
+The script:
+
+* continues when users already exist
+* skips ACLs for missing resources
+* logs failures without terminating the entire migration
+
+Fatal API failures will still terminate execution.
 
 ---
 
 # Disclaimer
 
-This script is provided as-is and should be tested in a non-production environment before use in production organizations.
+This script is provided as-is and should be tested in a non-production environment before large-scale migration operations.
